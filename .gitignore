@@ -1,0 +1,38 @@
+# --- Data & Models ---
+# Ignore all raw and processed data
+data/raw/
+data/processed/
+# Ignore serialized model files
+*.pkl
+*.joblib
+*.pth
+*.h5
+*.onnx
+
+# --- Python & Environment ---
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# --- ML Tools & Logging ---
+mlruns/
+lightning_logs/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Operating System ---
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+.docker/
