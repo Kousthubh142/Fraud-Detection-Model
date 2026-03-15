@@ -14,7 +14,7 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-
+import os
 import mlflow
 import mlflow.xgboost
 import numpy as np
@@ -36,10 +36,12 @@ cfg        = load_config()
 MODEL_NAME = cfg["mlflow"]["registered_model_name"]
 
 # Resolve tracking URI — if relative path, anchor to project root
-_tracking_uri = cfg["mlflow"]["tracking_uri"]
-if not _tracking_uri.startswith("http"):
-    _project_root = Path(__file__).resolve().parent.parent
-    _tracking_uri = str(_project_root / _tracking_uri)
+_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+if not _tracking_uri:
+    _tracking_uri = cfg["mlflow"]["tracking_uri"]
+    if not _tracking_uri.startswith("http"):
+        _project_root = Path(__file__).resolve().parent.parent
+        _tracking_uri = str(_project_root / _tracking_uri)
 
 mlflow.set_tracking_uri(_tracking_uri)
 client = MlflowClient()

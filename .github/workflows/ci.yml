@@ -34,6 +34,8 @@ jobs:
 
       - name: Run registry tests
         run: pytest tests/test_registry.py -v --tb=short
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///tmp/mlflow_test.db
 
       - name: Run API tests
         run: pytest tests/test_api.py -v --tb=short
@@ -44,6 +46,8 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             -v
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///tmp/mlflow_test.db
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
