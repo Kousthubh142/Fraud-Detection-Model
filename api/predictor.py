@@ -29,8 +29,7 @@ cfg = load_config()
 # Resolve tracking URI
 _uri = cfg["mlflow"]["tracking_uri"]
 if not _uri.startswith("http"):
-    _project_root = Path(__file__).resolve().parent.parent
-    _uri = str(_project_root / _uri)
+    _uri = "/app/mlruns"
 mlflow.set_tracking_uri(_uri)
 
 

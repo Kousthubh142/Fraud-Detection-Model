@@ -2,7 +2,7 @@
 # Central config — all scripts read from here
 
 mlflow:
-  tracking_uri: "mlruns"
+  tracking_uri: "/app/mlruns"
   experiment_name: "fraud-detection"
   registered_model_name: "fraud_detector"
 
