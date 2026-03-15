@@ -7,12 +7,11 @@ Model is mocked — no MLflow server or GPU needed.
 Run with:  pytest tests/test_api.py -v
 """
 
-import sys
+
 import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, ".")
 
 # ── Mock the predictor BEFORE importing the app ───────────────────────────────
 # This prevents the real model from loading during tests

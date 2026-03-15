@@ -5,7 +5,6 @@ Run with:  pytest tests/test_train.py -v
 """
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +12,6 @@ import pytest
 import xgboost as xgb
 from sklearn.datasets import make_classification
 
-sys.path.insert(0, "src")
 from train import compute_metrics, DEFAULT_PARAMS, train
 
 

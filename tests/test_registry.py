@@ -5,13 +5,11 @@ Run with:  pytest tests/test_registry.py -v
 All tests use mocks — no live MLflow server needed.
 """
 
-import sys
 import numpy as np
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, "src")
 
 
 # ── Mock helpers ──────────────────────────────────────────────────────────────
