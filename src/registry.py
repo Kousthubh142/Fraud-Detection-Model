@@ -35,15 +35,24 @@ def load_config(path=None):
 cfg        = load_config()
 MODEL_NAME = cfg["mlflow"]["registered_model_name"]
 
-# Resolve tracking URI — if relative path, anchor to project root
+# Resolve tracking URI — env var takes priority, then config, then safe temp fallback
 _tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
 if not _tracking_uri:
-    _tracking_uri = cfg["mlflow"]["tracking_uri"]
-    if not _tracking_uri.startswith("http"):
+    _raw = cfg["mlflow"]["tracking_uri"]
+    if _raw.startswith("http") or _raw.startswith("sqlite"):
+        _tracking_uri = _raw
+    else:
+        # relative path like "/app/mlruns" — only safe inside Docker; use temp in CI
         _project_root = Path(__file__).resolve().parent.parent
-        _tracking_uri = str(_project_root / _tracking_uri)
+        _candidate = _project_root / _raw
+        if _candidate.parent.exists():
+            _tracking_uri = str(_candidate)
+        else:
+            _tracking_uri = "sqlite:///tmp/mlflow_registry.db"
 
 mlflow.set_tracking_uri(_tracking_uri)
+
+# Module-level client — tests patch this with @patch("registry.client")
 client = MlflowClient()
 
 
