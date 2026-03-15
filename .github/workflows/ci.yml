@@ -28,23 +28,15 @@ jobs:
 
       - name: Run feature pipeline tests
         run: pytest tests/test_features.py -v --tb=short
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Run training tests
         run: pytest tests/test_train.py -v --tb=short
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Run registry tests
         run: pytest tests/test_registry.py -v --tb=short
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Run API tests
         run: pytest tests/test_api.py -v --tb=short
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Full test suite with coverage
         run: |
@@ -52,8 +44,6 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
             -v
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
