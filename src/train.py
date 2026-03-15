@@ -11,11 +11,13 @@ Usage:
 
 import argparse
 import json
+import os
 import warnings
 from pathlib import Path
 
 import joblib
 import mlflow
+import yaml
 import mlflow.sklearn
 import numpy as np
 import optuna
@@ -34,6 +36,10 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
+
+_cfg_path = Path(__file__).parent.parent / "config.yaml"
+with open(_cfg_path) as _f:
+    cfg = yaml.safe_load(_f)
 
 DATA_DIR  = Path("data/processed")
 MODEL_DIR = Path("models")
@@ -136,6 +142,8 @@ def train(n_trials=50, use_optuna=True):
         n_trials:   number of Optuna hyperparameter search trials
         use_optuna: if False, uses DEFAULT_PARAMS (faster, for debugging)
     """
+    _uri = os.environ.get("MLFLOW_TRACKING_URI") or cfg["mlflow"]["tracking_uri"]
+    mlflow.set_tracking_uri(_uri)
     mlflow.set_experiment("fraud-detection")
 
     with mlflow.start_run(run_name=f"xgboost_optuna_{n_trials}trials"):
