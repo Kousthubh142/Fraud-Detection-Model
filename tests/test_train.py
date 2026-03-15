@@ -26,7 +26,7 @@ def imbalanced_data():
         n_samples=2000,
         n_features=36,
         n_informative=20,
-        weights=[0.95, 0.05],   # ~real fraud rate
+        weights=[0.95, 0.05],
         flip_y=0,
         random_state=42,
     )
