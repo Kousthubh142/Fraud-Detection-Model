@@ -41,19 +41,26 @@ if not _tracking_uri:
     _raw = cfg["mlflow"]["tracking_uri"]
     if _raw.startswith("http") or _raw.startswith("sqlite"):
         _tracking_uri = _raw
+    elif _raw.startswith("/"):
+        # absolute path (e.g. /app/mlruns) — only valid inside Docker, not in CI
+        _tracking_uri = "sqlite:///tmp/mlflow_registry.db"
     else:
-        # relative path like "/app/mlruns" — only safe inside Docker; use temp in CI
+        # relative path — anchor to project root
         _project_root = Path(__file__).resolve().parent.parent
-        _candidate = _project_root / _raw
-        if _candidate.parent.exists():
-            _tracking_uri = str(_candidate)
-        else:
-            _tracking_uri = "sqlite:///tmp/mlflow_registry.db"
+        _tracking_uri = str(_project_root / _raw)
 
 mlflow.set_tracking_uri(_tracking_uri)
 
-# Module-level client — tests patch this with @patch("registry.client")
-client = MlflowClient()
+# Lazily initialized — avoids connecting at import time (important for tests)
+client = None
+
+
+def _client():
+    """Return the module-level MlflowClient, creating it on first call."""
+    global client
+    if client is None:
+        client = MlflowClient()
+    return client
 
 
 # ── Registry operations ───────────────────────────────────────────────────────
@@ -64,13 +71,13 @@ def list_versions(model_name=MODEL_NAME):
     print(f"{'Ver':<6} {'Stage':<15} {'Run ID':<36} {'AUC-PR':<10}")
     print("-" * 72)
 
-    versions = client.get_latest_versions(model_name)
+    versions = _client().get_latest_versions(model_name)
     if not versions:
         print("  No versions found.")
         return
 
     for v in versions:
-        run    = client.get_run(v.run_id)
+        run    = _client().get_run(v.run_id)
         auc_pr = run.data.metrics.get("auc_pr", "—")
         print(f"{v.version:<6} {v.current_stage:<15} {v.run_id:<36} {auc_pr:<10}")
 
@@ -80,15 +87,15 @@ def promote_to_production(version, model_name=MODEL_NAME):
     Promote a specific model version to Production.
     Automatically archives the current Production version.
     """
-    mv     = client.get_model_version(model_name, version)
-    run    = client.get_run(mv.run_id)
+    mv     = _client().get_model_version(model_name, version)
+    run    = _client().get_run(mv.run_id)
     auc_pr = run.data.metrics.get("auc_pr", "unknown")
 
     print(f"\nPromoting version {version} to Production")
     print(f"  AUC-PR : {auc_pr}")
     print(f"  Run ID : {mv.run_id}")
 
-    client.transition_model_version_stage(
+    _client().transition_model_version_stage(
         name=model_name,
         version=version,
         stage="Production",
@@ -100,7 +107,7 @@ def promote_to_production(version, model_name=MODEL_NAME):
 
 def archive_version(version, model_name=MODEL_NAME):
     """Move a version to Archived stage."""
-    client.transition_model_version_stage(
+    _client().transition_model_version_stage(
         name=model_name,
         version=version,
         stage="Archived",
@@ -121,7 +128,7 @@ def load_production_model(model_name=MODEL_NAME):
 
 def get_production_run_id(model_name=MODEL_NAME):
     """Returns the run_id that produced the current Production model."""
-    versions = client.get_latest_versions(model_name, stages=["Production"])
+    versions = _client().get_latest_versions(model_name, stages=["Production"])
     if not versions:
         raise ValueError(f"No Production version found for '{model_name}'")
     return versions[0].run_id
@@ -136,7 +143,7 @@ def compare_staging_vs_production(X_test, y_test, model_name=MODEL_NAME):
 
     results = {}
     for stage in ["Staging", "Production"]:
-        versions = client.get_latest_versions(model_name, stages=[stage])
+        versions = _client().get_latest_versions(model_name, stages=[stage])
         if not versions:
             print(f"  No {stage} model found — skipping.")
             continue
@@ -196,7 +203,7 @@ def get_best_run(experiment_name=None, metric="auc_pr"):
 
 def add_model_description(version, description, model_name=MODEL_NAME):
     """Add a human-readable description to a model version."""
-    client.update_model_version(
+    _client().update_model_version(
         name=model_name,
         version=version,
         description=description,
