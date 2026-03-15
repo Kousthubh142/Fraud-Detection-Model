@@ -158,6 +158,7 @@ class TestTrainIntegration:
         import train as train_module
         monkeypatch.setattr(train_module, "DATA_DIR",  tmp_path / "data/processed")
         monkeypatch.setattr(train_module, "MODEL_DIR", tmp_path / "models")
+        monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{tmp_path}/mlflow_test.db")
         (tmp_path / "models").mkdir()
 
         model, metrics = train_module.train(n_trials=2, use_optuna=False)
