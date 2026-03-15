@@ -12,6 +12,8 @@ jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
+    env:
+      MLFLOW_TRACKING_URI: sqlite:///tmp/mlflow_test.db
 
     steps:
       - name: Checkout code

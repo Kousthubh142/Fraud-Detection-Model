@@ -2,7 +2,7 @@
 
 > End-to-end real-time fraud detection pipeline — from raw transaction data to a deployed REST API with explainability and drift monitoring.
 
-![Python](https://img.shields.io/badge/Python-3.11-blue) ![XGBoost](https://img.shields.io/badge/Model-XGBoost-orange) ![FastAPI](https://img.shields.io/badge/API-FastAPI-green) ![MLflow](https://img.shields.io/badge/Tracking-MLflow-blue) ![Docker](https://img.shields.io/badge/Deploy-Docker-blue) ![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
+![Python](https://img.shields.io/badge/Python-3.12-blue) ![XGBoost](https://img.shields.io/badge/Model-XGBoost-orange) ![FastAPI](https://img.shields.io/badge/API-FastAPI-green) ![MLflow](https://img.shields.io/badge/Tracking-MLflow-blue) ![Docker](https://img.shields.io/badge/Deploy-Docker-blue) ![CI](https://github.com/kousthubhng/fraud-detection-system/actions/workflows/ci.yml/badge.svg) ![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
 
 ---
 
@@ -26,78 +26,50 @@ Real anonymised credit card transactions from European cardholders (September 20
 | Missing values | None |
 | Time period | 2 days |
 
-### Class imbalance
-The dataset is severely imbalanced — **only 1 in 579 transactions is fraudulent**. This means:
-- A naive model predicting all-legitimate achieves 99.83% accuracy but catches zero fraud
-- Standard accuracy is a useless metric for this problem
-- We evaluate using **AUC-PR (Precision-Recall)** and **F1-score**, not accuracy
-- Training requires imbalance handling (SMOTE + class weights)
+---
 
-### Amount distribution
+## Model Performance
 
-| | Fraud | Legitimate |
-|---|---|---|
-| Mean | $122.21 | $88.29 |
-| Median | $9.25 | $22.00 |
-| Max | $2,125.87 | $25,691.16 |
-| Std | $256.68 | $250.11 |
-
-Key finding: fraudulent transactions cluster heavily at low amounts (median $9.25 vs $22.00 for legitimate). Fraudsters test stolen cards with small transactions before attempting larger ones.
+| Metric | Value |
+|---|---|
+| AUC-ROC | **0.9803** |
+| AUC-PR | **0.8814** |
+| Precision | 77.27% |
+| Recall | 86.73% |
+| F1 Score | 0.8173 |
+| Fraud caught | 85 / 98 (86.73%) |
+| False positives | 25 |
 
 ---
 
 ## Architecture
 
 ```
-Transaction Source (CSV / Kafka)
-        │
-        ▼
-Data Ingestion & Validation
-        │
-        ▼
-Feature Engineering Pipeline      ← SMOTE, RobustScaler, derived features
-        │
-        ▼
-ML Model Training                  ← XGBoost + Optuna hyperparameter search
-        │
-        ▼
-Model Evaluation                   ← AUC-PR, F1, SHAP explainability
-        │
-        ▼
-MLflow Model Registry              ← Versioning, experiment tracking
-        │
-        ▼
-FastAPI REST Endpoint              ← /predict returns score + SHAP explanation
-        │
-        ▼
-Streamlit Dashboard                ← Live alerts, KPIs, SHAP plots
-        │
-        ▼
-Drift Monitoring (Evidently AI)    ← Automated weekly reports
-        │
-        ▼
-CI/CD → Docker → GCP Cloud Run     ← Auto-deploy on every push to main
+Raw Data (CSV)
+     │
+     ▼
+Feature Engineering Pipeline
+  - Time → hour-of-day, is_night
+  - Amount → log_amount, amount_bin
+  - Interaction terms: V14×Amount, V17×Amount, V12×Amount, V10×Amount
+  - StandardScaler  (36 features total)
+     │
+     ▼
+XGBoost Training + SMOTE oversampling
+     │
+     ▼
+MLflow Experiment Tracking & Model Registry
+     │
+     ├──▶ FastAPI REST API
+     │      POST /predict  →  { fraud_probability, is_fraud, risk_level }
+     │      GET  /health  |  GET /metrics
+     │
+     ├──▶ Streamlit Dashboard
+     │      KPI cards · transaction feed · precision/recall curve · SHAP waterfall
+     │
+     └──▶ Evidently AI Drift Monitor
+            Weekly HTML report (GitHub Actions cron)
 ```
-
----
-
-## Tech Stack
-
-| Layer | Tools |
-|---|---|
-| Data processing | Pandas, NumPy, scikit-learn |
-| Imbalance handling | imbalanced-learn (SMOTE) |
-| Modelling | XGBoost, LightGBM, Random Forest |
-| Hyperparameter tuning | Optuna |
-| Explainability | SHAP |
-| Experiment tracking | MLflow |
-| Data versioning | DVC |
-| API serving | FastAPI, Uvicorn, Pydantic |
-| Dashboard | Streamlit |
-| Drift monitoring | Evidently AI |
-| Containerisation | Docker, Docker Compose |
-| CI/CD | GitHub Actions |
-| Cloud deployment | GCP Cloud Run |
 
 ---
 
@@ -105,49 +77,35 @@ CI/CD → Docker → GCP Cloud Run     ← Auto-deploy on every push to main
 
 ```
 fraud-detection-system/
+├── api/
+│   ├── main.py             # FastAPI app
+│   ├── predictor.py        # Model loading + inference
+│   └── schemas.py          # Pydantic request/response models
+├── dashboard/
+│   └── app.py              # Streamlit dashboard
 ├── data/
-│   ├── raw/               # creditcard.csv (not tracked — see .gitignore)
-│   └── processed/         # train/test splits
-├── notebooks/
-│   ├── 01_eda.ipynb        # Exploratory data analysis ← YOU ARE HERE
-│   ├── 02_features.ipynb   # Feature engineering
-│   └── 03_modelling.ipynb  # Model training & evaluation
+│   ├── raw/                # creditcard.csv (gitignored)
+│   └── processed/          # scaled arrays, feature pipeline
+├── docs/
+│   └── project_summary.md  # 1-page project summary
+├── models/
+│   ├── xgb_fraud_v1.pkl    # trained model
+│   └── metrics.json        # evaluation metrics
 ├── src/
 │   ├── features.py         # FeaturePipeline class
 │   ├── train.py            # Training script with MLflow logging
-│   ├── evaluate.py         # Metrics + SHAP plots
-│   └── utils.py
-├── api/
-│   ├── main.py             # FastAPI app
-│   ├── schemas.py          # Pydantic request/response models
-│   └── predictor.py        # Model loading from MLflow registry
-├── dashboard/
-│   └── app.py              # Streamlit dashboard
-├── tests/
-│   ├── test_features.py
-│   └── test_api.py
+│   ├── registry.py         # MLflow model registry helpers
+│   └── monitor.py          # Evidently AI drift report
+├── tests/                  # 66 unit + integration tests
+├── .github/workflows/
+│   ├── ci.yml              # test → docker build → security scan
+│   └── drift.yml           # weekly drift monitor (Monday 00:00 UTC)
 ├── docker/
-│   ├── Dockerfile
 │   └── docker-compose.yml
-├── .github/
-│   └── workflows/
-│       └── ci.yml
+├── Dockerfile
 ├── config.yaml
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
-
----
-
-## EDA Key Findings
-
-From `notebooks/01_eda.ipynb`:
-
-1. **Severe class imbalance** — 0.1727% fraud rate makes accuracy meaningless as a metric
-2. **Fraud clusters at low amounts** — median fraud amount ($9.25) is less than half the median legitimate amount ($22.00), consistent with card-testing behaviour
-3. **High-signal features** — V17, V14, V12, V10 show the strongest correlation with the fraud label across the PCA-transformed feature space
-4. **Time-of-day patterns** — fraud rate is elevated during late night / early morning hours; engineered as a binary feature `is_night`
-5. **No missing data** — dataset requires no imputation
 
 ---
 
@@ -155,7 +113,7 @@ From `notebooks/01_eda.ipynb`:
 
 ### Prerequisites
 ```bash
-python 3.11+
+python 3.12+
 pip install -r requirements.txt
 ```
 
@@ -165,34 +123,53 @@ pip install kaggle
 kaggle datasets download -d mlg-ulb/creditcardfraud -p data/raw/ --unzip
 ```
 
-### Run EDA notebook
+### Train model
 ```bash
-jupyter notebook notebooks/01_eda.ipynb
+python src/features.py
+python src/train.py
 ```
 
-### Run API locally (once model is trained)
+### Run API locally
 ```bash
 uvicorn api.main:app --reload
-# API docs at http://localhost:8000/docs
+# Docs at http://localhost:8000/docs
+```
+
+### Run dashboard
+```bash
+streamlit run dashboard/app.py
 ```
 
 ### Run with Docker
 ```bash
-docker-compose -f docker/docker-compose.yml up
+docker-compose up
+```
+
+### Run drift monitor
+```bash
+python src/monitor.py --threshold 0.5
+# Report saved to reports/drift_report.html
 ```
 
 ---
 
-## API Usage (coming in Week 5)
+## API Usage
 
 ```bash
-curl -X POST "https://your-api-url/predict" \
+curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
   -d '{
-    "amount": 149.62,
-    "hour": 2,
-    "v1": -1.35, "v2": -0.07, "v3": 2.53,
-    ...
+    "Time": 406.0,
+    "V1": -2.31, "V2": 1.95, "V3": -1.60,
+    "V4": 3.99, "V5": -0.52, "V6": -1.43,
+    "V7": -2.77, "V8": 0.10, "V9": -0.33,
+    "V10": -1.47, "V11": 1.18, "V12": -2.83,
+    "V13": -0.17, "V14": -2.43, "V15": 1.20,
+    "V16": -2.26, "V17": 0.52, "V18": -1.35,
+    "V19": -0.42, "V20": 0.31, "V21": 0.03,
+    "V22": 0.41, "V23": -0.17, "V24": 0.13,
+    "V25": -0.08, "V26": 0.41, "V27": 0.06,
+    "V28": 0.02, "Amount": 149.62
   }'
 ```
 
@@ -201,47 +178,38 @@ Response:
 {
   "fraud_probability": 0.9231,
   "is_fraud": true,
-  "risk_level": "HIGH",
-  "top_features": [
-    {"feature": "V14", "impact": -0.842},
-    {"feature": "V17", "impact": -0.631},
-    {"feature": "V12", "impact": -0.419}
-  ],
-  "latency_ms": 12.4
+  "risk_level": "HIGH"
 }
 ```
 
 ---
 
-## Progress
+## CI/CD
 
-- [x] Week 1 — Repository setup, dataset acquisition, EDA
-- [ ] Week 2 — Feature engineering pipeline
-- [ ] Week 3 — Model training & evaluation
-- [ ] Week 4 — MLflow experiment tracking
-- [ ] Week 5 — FastAPI serving layer
-- [ ] Week 6 — Docker + CI/CD pipeline
-- [ ] Week 7 — Streamlit dashboard
-- [ ] Week 8 — Drift monitoring + final polish
+- **ci.yml** — triggers on every push/PR to `main`: runs 66 tests, builds and pushes Docker image to Docker Hub, runs Trivy security scan
+- **drift.yml** — runs every Monday 00:00 UTC (+ manual trigger via `workflow_dispatch`): generates Evidently drift report, uploads HTML artifact with 30-day retention, exits non-zero if drift share > 50%
 
 ---
 
-## Results (updating as project progresses)
+## Tech Stack
 
-| Model | AUC-ROC | AUC-PR | F1 |
-|---|---|---|---|
-| Logistic Regression (baseline) | — | — | — |
-| Random Forest | — | — | — |
-| LightGBM | — | — | — |
-| XGBoost (tuned) | — | — | — |
+| Layer | Tools |
+|---|---|
+| Data processing | Pandas, NumPy, scikit-learn |
+| Imbalance handling | imbalanced-learn (SMOTE) |
+| Modelling | XGBoost |
+| Explainability | SHAP |
+| Experiment tracking | MLflow |
+| API serving | FastAPI, Uvicorn, Pydantic |
+| Dashboard | Streamlit |
+| Drift monitoring | Evidently AI |
+| Containerisation | Docker, Docker Compose |
+| CI/CD | GitHub Actions |
 
 ---
 
 ## Author
 
 **Kousthubh N Gowda**  
-Data Analyst Intern@ JAR  
-[LinkedIn](https://www.linkedin.com/in/kousthubh-n-gowda-6698b02a9/) 
-
----
-
+Data Analyst Intern @ JAR  
+[LinkedIn](https://www.linkedin.com/in/kousthubh-n-gowda-6698b02a9/)
