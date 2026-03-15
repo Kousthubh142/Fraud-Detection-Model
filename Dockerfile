@@ -17,7 +17,6 @@ COPY api/        ./api/
 COPY src/        ./src/
 COPY config.yaml ./config.yaml
 COPY models/     ./models/
-COPY mlruns/     ./mlruns/
 
 ENV PYTHONPATH=/app
 
