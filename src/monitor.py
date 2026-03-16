@@ -12,9 +12,21 @@ from evidently.metric_preset import DataDriftPreset
 from evidently.report import Report
 
 
+FEATURE_NAMES = [
+    "V1","V2","V3","V4","V5","V6","V7","V8","V9","V10",
+    "V11","V12","V13","V14","V15","V16","V17","V18","V19","V20",
+    "V21","V22","V23","V24","V25","V26","V27","V28",
+    "hour","is_night","log_amount","amount_bin",
+    "v14_x_amount","v17_x_amount","v12_x_amount","v10_x_amount",
+]
+
+
 def load_feature_names(path: str = "data/processed/feature_names.csv") -> list[str]:
-    df = pd.read_csv(path)
-    return df.iloc[:, 0].tolist()
+    try:
+        df = pd.read_csv(path)
+        return df.iloc[:, 0].tolist()
+    except FileNotFoundError:
+        return FEATURE_NAMES
 
 
 def run_drift_report(threshold: float = 0.5) -> None:

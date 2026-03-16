@@ -23,11 +23,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Check processed data exists
+        id: check_data
+        run: |
+          if [ -f "data/processed/X_train_sm.npy" ] && [ -f "data/processed/X_test_scaled.npy" ]; then
+            echo "data_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "data_exists=false" >> $GITHUB_OUTPUT
+            echo "Processed data not found — skipping drift report."
+            echo "To enable: commit data/processed/*.npy or set up DVC/S3 pull."
+          fi
+
       - name: Run drift monitor
+        if: steps.check_data.outputs.data_exists == 'true'
         run: python src/monitor.py --threshold 0.5
 
       - name: Upload drift report
-        if: always()
+        if: always() && steps.check_data.outputs.data_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: drift-report-${{ github.run_id }}
